@@ -1,0 +1,99 @@
+version: "3.9"
+services:
+
+  jobmanager:
+    container_name: jobmanager
+    image: flink:1.16.0-scala_2.12-java11
+    ports:
+      - 9081:8081
+      - 9249:9249
+    command: jobmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
+        metrics.reporter.prom.factory.port: 9249
+        metrics.reporters: prom
+    volumes:
+      - ./settings/:/settings
+      - ./data/:/data
+    networks:
+      - kafka-network
+
+  taskmanager-1:
+    container_name: taskmanager-1
+    image: flink:1.16.0-scala_2.12-java11
+    ports:
+      - 9250:9249
+    depends_on:
+      - jobmanager
+    command: taskmanager
+    scale: 1
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
+        metrics.reporter.prom.factory.port: 9249
+        metrics.reporters: prom
+        taskmanager.numberOfTaskSlots: 10
+    volumes:
+      - ./settings/:/settings
+      - ./data/:/data
+    networks:
+      - kafka-network
+
+  taskmanager-2:
+    container_name: taskmanager-2
+    image: flink:1.16.0-scala_2.12-java11
+    ports:
+      - 9251:9249
+    depends_on:
+      - jobmanager
+    command: taskmanager
+    scale: 1
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
+        metrics.reporter.prom.factory.port: 9249
+        metrics.reporters: prom
+        taskmanager.numberOfTaskSlots: 10
+    volumes:
+      - ./settings/:/settings
+      - ./data/:/data
+    networks:
+      - kafka-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+    - 9090:9090
+    volumes:
+    - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - kafka-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+    - 3000:3000
+    environment:
+    - GF_SECURITY_ADMIN_PASSWORD=flink
+    volumes:
+    - ./grafana/provisioning/:/etc/grafana/provisioning/
+    networks:
+      - kafka-network
+
+volumes:
+  settings:
+  data:
+  
+networks:
+  kafka-network:
+    driver: bridge
+
